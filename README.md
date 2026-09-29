@@ -5,7 +5,7 @@
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue?logo=python)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.8.26-orange)](https://github.com/igs-paddyyang-tw/ark_team_agent/releases)
+[![Version](https://img.shields.io/badge/version-1.8.26-orange)](https://github.com/igs-paddyyang-tw/ark-agent-team/releases)
 [![Tests](https://img.shields.io/badge/tests-2114%20passed-brightgreen)](#測試與品質)
 
 **作者**：paddyyang（[@igs-paddyyang-tw](https://github.com/igs-paddyyang-tw)）
@@ -71,7 +71,7 @@
 ## 安裝
 
 ```bash
-pip install https://github.com/igs-paddyyang-tw/ark_team_agent/releases/download/v1.8.26/ark_team_agent-1.8.26-py3-none-any.whl
+pip install https://github.com/igs-paddyyang-tw/ark-agent-team/releases/download/v1.8.26/ark_team_agent-1.8.26-py3-none-any.whl
 ```
 
 **需求**：Python ≥ 3.11、[Kiro CLI](https://kiro.dev) 已安裝並在 `PATH`
@@ -80,7 +80,7 @@ pip install https://github.com/igs-paddyyang-tw/ark_team_agent/releases/download
 > 需要憑證時用 API 端點：
 >
 > ```bash
-> gh release download v1.3.2 --repo igs-paddyyang-tw/ark_team_agent -p '*.whl'   # 需 GH_TOKEN
+> gh release download v1.3.2 --repo igs-paddyyang-tw/ark-agent-team -p '*.whl'   # 需 GH_TOKEN
 > ```
 >
 > 或 `curl` + **API url** + `Accept: application/octet-stream`（缺這個 header 會拿到 JSON metadata，
