@@ -6,6 +6,31 @@
 
 ---
 
+## 1.9.0 (2026-09-30)
+
+### ✨ ark-team-site 成為套件內建預設網站（契約驅動、六區塊、五風格）
+
+把契約驅動的通用網站做成套件出貨的預設前端，取代閒置的 `dashboard_page`
+臨時單檔頁（原完整前端 2026-05 被誤刪）。
+
+- **落點**：`src/ark_team_agent/site/`（55 檔隨 wheel 出貨；package-data 顯式
+  白名單 html/css/js/json —— 非 .py 資產不在預設收集範圍）。
+- **開關**：`dashboard.site_engine`（預設 `builtin` = 新站；`legacy` 退回
+  dashboard_page，過渡期可逆）。有 `apps/team-website` 的部署優先權不變。
+- **site_server**：serve site/ 的 Starlette static，`/data` 雙來源
+  （`state/site-data` 真實優先 → fallback 內建 mock，含防目錄穿越）。
+- **site_exporter**：team.yaml/skills/reports/wiki/sessions → site 契約 JSON。
+  🔴 **不產假資料**：health series/heatmap、jobs 執行歷史需 runtime event log，
+  daemon 未存 → 保持 mock，只真接有權威源的 team/skills/catalog/wiki/traces。
+- 守門 30+ 條（打包/配置/雙來源/lint/exporter schema 驗證/穿越，含反證）。
+  paddy 真實實測：8 agents、12 skills、17 報表、196 wiki 頁、64 sessions→traces。
+
+### 🔧 updater 不用 token 也能更新（發版 repo 已 public）
+
+`_asset_url` 舊版硬擋「沒有 GITHUB_TOKEN 直接 return 錯誤」，而發版 repo 早已
+public（匿名查/下載都 200）。改 token 選配。`RELEASE_REPO` 更新為 rename 後
+新名 `ark-agent-team`。守門 + 反證。
+
 ## 1.8.25 (2026-09-23)
 
 ### 🔧 session 監控後台卡片顯示 agent 名而非 hash
