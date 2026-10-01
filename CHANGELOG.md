@@ -6,6 +6,30 @@
 
 ---
 
+## 1.9.3 (2026-10-01)
+
+### 🔴 Context 治理 v2：注入量量測校正 + 真實視窗用量觀測
+
+spec：`docs/specs/context-governor-v2-spec.md`。動工前實測推翻原計畫：
+**kiro-cli 2.26 已不注入 skill 正文**（SKILL.md 正文 180KB 與 92B 的 context 用量相同，
+預設與 legacy v1 兩引擎皆然），而 `context_meter` 一直把 SKILL.md 全檔大小算進注入量，
+對所有部署高估約 3–4 倍、歸因錯指向 skills。
+
+- **`context_meter`**：`.kiro/skills/*/SKILL.md` 只計 frontmatter 區塊（上界）；steering／AGENTS.md／README.md
+  照舊全檔。新增 `skills_meta` 欄。回退：`ARK_CONTEXT_SKILLS_MODE=full`。
+  paddy 實機：paddy-agent 196,705 → 111,409、coder 152,305 → 31,596，8 個 instance 全回 `ok`，最大來源改為 steering。
+  `memory-consolidate` 的預算推導自動吃到校正（同一個量測函式）。
+- **新模組 `context_usage`**：讀 kiro session 中繼檔 `~/.kiro/sessions/cli/<sessionId>.json` 的
+  `context_usage_percentage`／`context_window_tokens` 與歷史大小 —— 這是 ACP `_kiro.dev/metadata` 從沒送來的訊號。
+  `/api/status` 的 `context` 欄新增 `usage_pct`、`window_tokens`、`history_bytes`。
+- **巡檢**：用量 ≥ `usage_soft_pct`（預設 70）記 degraded `context_usage_high:<name>:<pct>`（同 instance 一筆、回落自癒）；
+  首次 ≥ `usage_hard_pct`（預設 90）記事件。**只觀測，不阻擋、不重啟、不輪替**；不需宣告 `context_budget` 即生效。
+- 守門 23 條（反證：skills 改回全檔 → 2 紅；拿掉 degraded 去重 → 2 紅）；既有兩條依契約演進改寫並註明。
+
+### ✨ 資料台宿主整合（commit 2e2bca7）
+
+`site_server.create_app(host=)`：掛在自建官網子路由時注入頂欄回宿主、鎖風格主題、只留本部署 team。獨立起站行為不變。
+
 ## 1.9.0 (2026-09-30)
 
 ### ✨ ark-team-site 成為套件內建預設網站（契約驅動、六區塊、五風格）
