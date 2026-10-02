@@ -6,6 +6,43 @@
 
 ---
 
+## 1.9.4 (2026-10-02)
+
+### 🩺 preflight `exit_liveness`：headless 送不出檔案不再誤判 P0
+
+headless 部署（無 TG 出口）的 `reply_file`／`reply_task_image` 失敗是**部署結構的必然** —— 文字 `reply`
+能降級為 log（`api.py` 回 `ok:True`），但二進位檔塞不進 log（回 `ok:False`）→ `tool_calls.log` 記 `✗`
+→ `exit_liveness` 判 P0。實例：paddy 的 daily-news（ai-dev-agent）主產出 MD/HTML 已正常落檔，只是 TG 附件
+送不出，卻連日掛 `preflight_failed:exit_liveness`。這是「同一個 `✗` 承載兩種語意」（真失敗 vs headless 無出口）。
+
+- 新增 `_FILE_ONLY_OUTBOUND = {reply_file, reply_task_image}`；headless 時這類失敗與陳舊失敗同理（無行動價值）→ 不判 P0
+- **只豁免 headless** —— 有 TG 的部署 `reply_file` 失敗是真失敗，照常報
+- `run_and_apply` 經 `_is_headless(daemon)`（讀 `config.mode`）把旗標傳進 `shared`
+- 守門 4 條（反證：拿掉豁免 → headless 測試紅；非 headless 同一筆 ✗ → 必須紅；headless 下文字 reply ✗ → 仍紅）
+- 實機驗證：paddy 重啟後 P0 歸零，ai-dev exit_liveness 回「headless…不判定」
+
+### ⚡ session_web：`/api/sessions` 不再卡住 daemon
+
+`open_state` 用相關子查詢，每個 tool.call 都重掃整個 session 的 tool.result 並逐筆 `json_extract` —— 平方級。
+實測 94 個 session 合計 729ms、`/api/sessions` 0.8–1.1 秒；而它是 async 端點裡的同步查詢，**執行時卡住整個 daemon 事件迴圈**
+（官網後台 Sessions 頁每 5 秒輪詢 → daemon 約 20% 時間被卡）。
+
+- 改兩次索引查詢 + Python 集合比對（線性；NULL call_id 語意與舊查詢相同），新增索引 `(session_id, kind, seq)`
+- `/api/sessions` 改同步函式，由 FastAPI 丟 threadpool
+- 真實 DB 94 個 session 新舊結果逐筆相同；`open_state` 合計 729ms → 25ms
+- 守門 4 條（反證：退回舊查詢 → 紅）
+
+
+### 🔌 MCP 工具定義的 context 成本量測（spec `docs/specs/mcp-tool-context-spec.md` W0）
+
+- **新模組 `mcp_meter`**：讀 `<wd>/.kiro/settings/mcp.json`；team MCP 依 role 用 `tools_for_role` 算**確切** schema 位元組，
+  外部 server 只記名稱（不啟動、不連網路）。`/api/status` 的 `context` 欄新增 `mcp_team_bytes`、`mcp_external`。
+- `estimate_residual_pct`：首輪用量 − 基線 1.70% − (檔案＋team MCP)/30KB 每百分點 = 未解釋殘差（外部 MCP）。係數單一來源，守門釘住。
+- `first_turn_usage_index`：基線取「歷史 ≤50KB 中最新」的 session —— 不取歷史最小（會撿到舊版 kiro 的 session，實測 paddy 根目錄 11.87% 即此）。
+- 每日 `context-audit`：新增 RECORD_ONLY 欄位 `mcp_external`／`mcp_team_bytes`／`mcp_residual_pct`；殘差 ≥2pp 且有外部 server 的另段列出，**不影響評級**。
+- 實測：cto（github＋kibana）殘差 +4.13pp，其餘 12 個只掛 team 的 instance +0.15～+1.64pp。toolSearch 隔離實驗：github 0.77pp 中可省 0.64pp、工具仍可呼叫。
+- 守門 20 條（反證：team 誤判外部 → 8 紅；報告不看外部 server → 1 紅；基線退回取歷史最小 → 2 紅）。
+
 ## 1.9.3 (2026-10-01)
 
 ### 🔴 Context 治理 v2：注入量量測校正 + 真實視窗用量觀測
