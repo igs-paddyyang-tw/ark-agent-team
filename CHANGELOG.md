@@ -6,6 +6,37 @@
 
 ---
 
+## 1.9.5 (2026-10-05)
+
+### 🔒 task_board：原子寫入 + 跨行程鎖 + 壞檔不清空（審查 P1-2）
+
+`board.json` 原本 `write_text` 直接覆寫、無鎖、`_load` 讀到壞檔靜默回空看板。
+後果有二：8 個寫入端（team_mcp ×5 每 agent 一個行程、telegram ×2、api ×1）同時建任務時
+**後寫蓋先寫**；讀到寫一半的檔 → 下一次 save **把整份看板清空**，無任何錯誤。
+
+- `fcntl.flock` 跨行程互斥鎖（`_board_lock`）包住 read-modify-write；行程結束自動釋放、無 stale。
+  **刻意不用既有 `FileLock`** —— 那是 check-then-write 協作鎖（TOCTOU、失敗只回 False 不阻塞、留 stale）。
+- `os.replace` 原子寫（同目錄 temp + fsync + replace），消除「寫一半」視窗。
+- 壞檔分兩態：寫路徑 `_load(strict=True)` 拋 `BoardCorruptError`（**中止寫入、不覆寫清空**，可人工搶救）；
+  唯讀顯示路徑 log error 後回空（不炸任務板畫面）。無論哪種都一定 log。
+- `_check_unblock` 改不自存（由外層單一臨界區 save，避免每次 open 新 fd 自鎖死）；
+  item `FileLock` 操作移到 board 鎖外（它鎖 item 檔不是 board）。
+- 守門 7 條含**真實 4 行程併發**；反證三方向紅（就地寫→紅、壞檔非 strict→紅、停 flock→40 任務剩 10）。
+
+### ⚡ session tailer：同步 I/O 移出事件迴圈 + mtime 快取（審查 P1-1）
+
+`run()` 每輪在 asyncio 迴圈上同步做 glob + 1380 檔 stat + 讀 sidecar + 讀檔 + 解析 JSONL
+（實測 **224–245ms/輪**）→ 事件迴圈約 **25%** 時間被卡住，API／TG polling／巡檢全受影響。
+
+- 每輪同步工作整包 `asyncio.to_thread(self._collect)` —— 不卡事件迴圈。
+  🔴 `publish` 碰 `asyncio.Queue`（非 thread-safe）**必須留在事件迴圈**：
+  thread 只做純 I/O 回 events，回 loop 後才 publish + set_offset。
+- 拆 `tail_once` → `_read_new_events`（純同步回 events，不 publish/不寫 offset）+ `_collect`（threadpool 掃全檔）；
+  `tail_once` 同步版保留給測試相容。
+- `(mtime_ns, size)` 快取 `self._seen`：未變動的 session 檔整輪跳過（不讀 sidecar／不開檔）。
+- 守門 3 條：事件迴圈不被阻塞（慢掃描期間 ticker 仍跳）、mtime 快取跳過未變動檔、AST 確認走 to_thread；
+  反證三方向紅。
+
 ## 1.9.4 (2026-10-02)
 
 ### 🩺 preflight `exit_liveness`：headless 送不出檔案不再誤判 P0
