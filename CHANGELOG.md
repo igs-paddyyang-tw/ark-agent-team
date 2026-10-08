@@ -6,6 +6,33 @@
 
 ---
 
+## 1.11.0 (2026-10-08)
+
+### 記憶架構重設計：MEMORY.md 導覽化 + memory.md 蒸餾保鮮
+
+**根因**：`.kiro/steering/MEMORY.md` 是 **always-on 注入**（`resources: steering/**/*.md`），
+卻被規範要求「每完成一個段落更新」→ 被堆成事件流水帳（paddy 實測 **73 KB**），每次對話全量注入；
+而該被常駐讀到的蒸餾精華 `memory/memory.md` 反而不載、且 team 側**沒有蒸餾 job**（宣告了沒接上）。
+角色顛倒。極端病例：某 agent 把每小時巡檢追加進 MEMORY.md → 410 筆 / 278 KB，單一工作區注入超 hard limit 55%。
+
+**本版的套件改動**（範本 + backend，隨 wheel 帶）：
+- `templates/steering/MEMORY.md`：從「每完成一個段落必須更新 + 舊歸檔路徑」重寫成**記憶導覽骨架**
+  （導覽表 + 里程碑區 + 快照）—— 新團隊 init 即拿到正確起點。
+- `templates/AGENTS-root.md`：「記憶怎麼用」收斂成**單一權威**。MEMORY.md 角色改「導覽 + 判準級精華」、
+  memory.md 標 `memory-distill` 蒸餾、daily 標「bot 自動／team 收尾手寫」、歸檔路徑修正 `memory/archive/`。
+- 9 個 `templates/agents/*/SOUL.md`：移除「每完成一個段落更新 MEMORY.md」（堆流水的錯誤指示源頭），
+  改「事件→`memory/daily/`、規則見 AGENTS.md」。
+- `backend.py`：`_WORKSPACE_DIRS` 的 memory 描述加 archive + 蒸餾；`_default_agents_md`（死碼）Memory 規範改指單一權威。
+
+### 🔴 升級注意（policy=once，影響所有既有部署）
+
+- `MEMORY.md` / `AGENTS.md` 的 policy 是 **`once`** → **升 wheel 救不了既有部署的本地檔**，
+  只影響新團隊 init。既有部署要**手動遷移**（瘦身 MEMORY.md、建 memory.md 骨架、補 `memory-distill` job、收斂本地規範）。
+- `memory-distill` 是 **scheduler prompt job**（2b LLM），不在 wheel 內 —— 各部署的 `scheduler.yaml` 要自己補
+  （既有 scheduler 不會被 wheel 覆寫）。
+- 完整遷移手冊：`docs/one-pagers/2026-10-08-memory-migration-playbook.md`（單檔自足）。
+- 守門：`tests/test_memory_convention.py` 新增 9 條（含 5 條反證），釘住「方向正確 + 不回退 + 範本與本地一致」。
+
 ## 1.9.5 (2026-10-05)
 
 ### 🔒 task_board：原子寫入 + 跨行程鎖 + 壞檔不清空（審查 P1-2）
