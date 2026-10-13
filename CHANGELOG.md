@@ -6,6 +6,39 @@
 
 ---
 
+## 1.11.1 (2026-10-13)
+
+### team daemon 啟動失敗 crash storm 修復（Phase A + B）
+
+**根因**（issue `docs/issues/2026-10-13-team-daemon-startup-crash-storm.md`，程式碼佐證）：
+kiro-cli backend（SSO token）失效時 kiro 印 `NoToken`（`detect_error` 原本認不得）→
+instance 走 **startup 失敗路徑** → 該路徑**不累進 `crash_times`**（AST 確認 append 僅在
+health loop 的運行崩潰分支）→ 既有時間窗熔斷量不到 → **固定間隔無限重試**（營運端 hoyeah/
+slotverse 實測單日各 1298/1263 次，且 `/api/health` 仍回 `ok:true`、journald 無記錄）。
+
+**Phase A — startup 失敗接進既有熔斷**：
+- 抽出 `_record_crash()` 為**唯一崩潰累進入口**，startup 失敗（`start_instance`）與運行
+  崩潰（health loop）共用，消除兩條路徑的邏輯重複（根因「同一件事兩條路徑」）。
+- `ERROR_PATTERNS` 的 `auth_error` 補 `NoToken` / `no token`，復用現成 fatal 早退。
+- 效果：token 失效時 startup 失敗會累進 → 達 `max_crashes_per_window` 進冷卻 →
+  達 `max_cooldowns` 設 `halted=True` 停止自動重啟，不再無限刷頻。
+
+**Phase B — crash 風暴可觀測 + 健康降級**：
+- `/api/health` 的 `ok` 新語意：`running>0 AND 無癱瘓級 degraded`。degraded 命中
+  `crash_loop_halted:` / `crash_storm:` 時 `ok=false` + 新增 `crash_storm` 欄位。
+- 觀測性 degraded（`slow_startup` / `mcp_external_servers` / `budget_soft` 等）**不影響 ok**，
+  避免正常慢啟動誤報。
+
+**關於缺陷 C（排程 catch-up）**：核碼 + 營運端 events.db 證實 **C 是 A 的下游表象，非獨立缺陷**
+——scheduler 的 `coalesce=True` 與 daemon 的 `IDLE` 語意早已存在（1.2.16/1.7.0）；「重複觸發」
+來自風暴期 daemon 反覆重啟→scheduler 反覆初始化+訊息重放。A 修好後 C 自然消失。
+
+**測試**：Phase A 反證 9（退碼 4 紅/還原 9 綠）、Phase B 7（含真打 `/api/health` 整合 + 反證），
+相關回歸 daemon/backend/health 全綠。
+
+> ⚠️ 單元層驗證通過；plan §4 的實機驗收（移除 token 跑 daemon，看退避拉長→halt、health 降級）
+> 由營運端（娜娜）協助在可控環境進行。B.2 journald 盲區未在套件層硬修（根因在營運端 systemd）。
+
 ## 1.11.0 (2026-10-08)
 
 ### 記憶架構重設計：MEMORY.md 導覽化 + memory.md 蒸餾保鮮
