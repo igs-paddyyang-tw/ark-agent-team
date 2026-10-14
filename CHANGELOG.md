@@ -6,6 +6,17 @@
 
 ---
 
+## 1.11.2 (2026-10-14)
+
+### fix：TG 對話回覆後誤降 IDLE（應為 AWAITING_REPLY）
+
+- **根因**：`api.py` reply 分流用 `_src == "user"` 判斷互動來源，但 `telegram.py` 實際送
+  `user:<id>` → TG 對話回覆後一律進 IDLE（Web 的 `web:*` 用 startswith 不受影響）。
+  連帶：TG 對話中的 agent 被當成「沒人在等」，決策規則 1/4 不套用。
+- **為何測試沒抓到**：`test_idle_state.py` 複製了一份判斷式自測，與正式碼脫鉤。
+- **修法**：抽 `daemon.is_interactive_source()`（看冒號前綴），api 與測試共用；
+  新增 `user:<id>` 案例 + 守門測試禁止 api.py 再內嵌判斷式。
+
 ## 1.11.1 (2026-10-13)
 
 ### team daemon 啟動失敗 crash storm 修復（Phase A + B）
