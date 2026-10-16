@@ -6,6 +6,32 @@
 
 ---
 
+## 1.12.2 (2026-10-16)
+
+依系統稽核 `docs/reports/2026-10-16-ark-team-agent-system-audit.md` 修正安全（F-1～F-4、F-17）與訊息可靠性（F-5～F-10、F-21）。
+
+### 🔴 安全
+
+- **F-1（P0）本機 API 跨站防護**：拿掉 `CORS *`；寫入類請求帶非本機 `Origin` → 403（瀏覽器跨站 POST 一定帶 Origin，
+  urllib／httpx／curl 不帶 → 既有呼叫端零影響）；`Host` 只收本機名稱（擋 DNS rebinding）。共享 token 認證另案
+- **F-2 網站 docs 路徑穿越**：`/api/docs/{path}`、`/docs/{slug}` 解析後必須落在 docs 目錄內（原本 `..%2fCLAUDE` 回 200）
+- **F-3 MCP 呼叫端驗 role**：`tools/call` 先查該 role 的工具清單（與 `tools/list` 同源）；原本 worker 直接呼叫
+  `broadcast_all`／`decision_overturn` 等會被執行
+- **F-4 TG 按鈕統一驗存取**：`_on_callback` 開頭 `_check_access`；原本 `l3:approve`、`hang:restart_confirm`、`overturn_confirm` 等不驗人
+- **F-17 送檔白名單也在 API 層**：`/api/reply-file`、`/api/reply-photo` 只收 output／artifacts／docs／knowledge（原本只檢查存在）
+
+### 🔧 訊息可靠性與 health loop
+
+- **F-5**：佇列改放 `(msg_id, text)`，TTL／取消只看這一則（原本任一過期／任一取消就丟目前這則，已投遞的 TTL 永不刪）
+- **F-6**：取出時 agent 為 AWAITING_REPLY／IDLE 而進程活著 → 轉回 RUNNING 投遞；其他狀態存 overflow（原本直接丟）
+- **F-10**：崩潰重啟建新 queue worker 前取消舊的（原本每崩一次多一個 worker 搶佇列）
+- **F-7**：P2P 輪數加時間窗 `communication.p2p.round_window_minutes`（預設 60）；原本只增不減 → 永久 403
+- **F-8**：health loop 每個 instance 包例外防護（原本一次例外即停止所有巡檢）；記錄每輪完成時間
+- **F-9**：崩潰重啟改為獨立 task（每 instance 至多一個在途）；原本串行 sleep 最多 300 秒，期間所有 instance 停止巡檢
+- **F-21**：`/api/health` 的 `ok` 以 alive（含 IDLE／AWAITING_REPLY）判；新增 `health_loop_alive`，loop 已死或超過 120 秒沒完成巡檢 → `ok=false`
+- **守門**：`test_security_hardening_1122.py` 9 條、`tests/website/test_docs_path_containment.py` 2 條、`test_reliability_1122.py` 10 條；
+  以修正前程式碼反證：安全 8 紅（其餘 3 條為正向案例）、可靠性 10 紅
+
 ## 1.12.1 (2026-10-16)
 
 ### 🔴 hotfix：舊部署的 `backend: kiro` 被 1.12.0 當成未知值，整隊 instance 不啟動
