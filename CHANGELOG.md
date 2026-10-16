@@ -6,6 +6,18 @@
 
 ---
 
+## 1.12.1 (2026-10-16)
+
+### 🔴 hotfix：舊部署的 `backend: kiro` 被 1.12.0 當成未知值，整隊 instance 不啟動
+
+- **事故**：aimkt-team-agent 的 `team.yaml` `defaults.backend: kiro` —— 1.12.0 前 `backend` 欄位**沒有消費者**，
+  寫什麼都沒差；1.12.0 開始驗證，`kiro` 不在內建 profile → 9 個 instance 全部 `config_invalid`（停機約 10 分鐘，
+  已先把該部署改成 `kiro-cli` 止血）
+- **修法**：profile 別名加 `kiro` → `kiro-cli`、`claude` → `claude-code`；內建名與別名比對**不分大小寫**
+- **守門**：`test_legacy_backend_values_accepted`（7 種舊寫法）+ `backend: kiro` 指令與未寫 backend 逐位元組相同；1.12.0 碼 5 紅
+- **判準**：接上一個原本沒有消費者的欄位，等於開始驗證部署裡**早就存在、從未被檢查**的值 ——
+  上線前要先掃現有部署的實際值，golden 只鎖「沒寫」的情況不夠
+
 ## 1.12.0 (2026-10-15)
 
 ### ✨ 跨 CLI backend：agent 改一行設定就能在 kiro-cli 與 Claude Code 之間切換
