@@ -6,6 +6,43 @@
 
 ---
 
+## 1.12.0 (2026-10-15)
+
+### ✨ 跨 CLI backend：agent 改一行設定就能在 kiro-cli 與 Claude Code 之間切換
+
+規格 `docs/specs/agent-cross-cli-backend-spec.md`、設計 `docs/designs/agent-cross-cli-backend-design.md`。
+
+```yaml
+instances:
+  finance-agent:
+    backend: claude-code     # 只改這行（預設 kiro-cli）
+    model: deep              # 別名：kiro→claude-opus-4.5／claude-code→opus
+```
+
+- **backend profile**（`backends:`）：內建 `kiro-cli`、`claude-code`（別名 `claude-cli`）；可自訂 profile（`type` 指向內建實作）
+  與 `transport: acp｜chat`。kiro-cli 未指定 transport 時沿用 `ARK_KIRO_ACP_ENABLED`（行為不變）
+- **模型別名**（`models:`）：內建 `fast`／`standard`／`deep`，部署可覆寫或新增；instance `model` 可寫別名或實名
+- **新增 instance `effort`**（low／medium／high／xhigh／max），對所有 backend 生效
+- **ClaudeBackend（ACP）**：經 `claude-agent-acp`（`npm i -g @agentclientprotocol/claude-agent-acp@0.90.0`）驅動 Claude Code；
+  team MCP 由佈建後的 `.kiro/settings/mcp.json` 轉成 ACP `mcpServers`；權限／模型／effort 經 `session/set_config_option`，
+  **全部設定成功才 ready**；模型實名對照 adapter 回傳的可選值；產生 `CLAUDE.md` 匯入 `.kiro/steering`（使用者手寫的不覆寫）
+- **`skip_permissions` 接上**：claude-code 對應 `bypassPermissions`／`default`（false 時啟動 warning：工具請求會被拒）
+- **設定驗證**：未知 backend、別名無對應、claude-code 用 chat、adapter 不在 PATH → **只拒絕該 instance**
+  （STOPPED + degraded `config_invalid:`，`/api/health` `ok=false`）；daemon 不退出（避免 systemd 重啟風暴）
+- **`model_failover`**：本版尚未實作 —— 有設定時 degraded 明說 `model_failover_unsupported`（不再靜默忽略）
+- **可觀測**：`/api/status` 每個 instance 帶 `backend`、`model`（實名）；claude-code 的 `usage_update` 記入 event log（`usage`）
+- **相容**：既有設定產生的 kiro 指令與 1.11.2 **逐位元組相同**（golden 守門 72 組）；daemon 改以 instance 的 backend 呼叫偵測函式
+- **實機**：paddy-team finance-agent 改走 claude-code（Opus 5.5），經 team MCP 呼叫 `query_team_status` 成功；其餘 7 個 kiro 指令不變
+
+### fix（發版腳本）：部署掃描受繼承的 PYTHONPATH 污染
+
+- `build_release.py` 的 `report_stale_deployments()` 探測子程序繼承發版者環境；在 worktree
+  發版必設 `PYTHONPATH=<wt>/src` → 每個 venv 都 import 到 worktree 原始碼，全被標
+  「最新版（editable，開發源）」。1.11.2 發版時 nana-team / ninja-team（實為 1.11.0 wheel）
+  因此被隱形，沒裝本套件的 bot venv 也被誤列。
+- 修法：探測加 `-E`（忽略 PYTHON* 環境變數）；新增行為測試（假 PYTHONPATH 模組不得被列出）。
+- 不進 wheel（scripts/），不需發版。
+
 ## 1.11.2 (2026-10-14)
 
 ### fix：TG 對話回覆後誤降 IDLE（應為 AWAITING_REPLY）
