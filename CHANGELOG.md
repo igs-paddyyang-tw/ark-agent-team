@@ -6,6 +6,45 @@
 
 ---
 
+## 1.13.0 (2026-10-16)
+
+依系統稽核 `docs/reports/2026-10-16-ark-team-agent-system-audit.md` 的 A-2 與剩餘 P2／P3。
+規格 `docs/specs/daemon-api-token-auth-spec.md`、計畫 `docs/plans/team-1.13.0-audit-p2p3-plan.md`。
+
+### 🔐 daemon API 寫入端點共用 token
+
+- 非 GET／HEAD／OPTIONS 請求檢查 `X-Ark-Team-Token`（或 `Authorization: Bearer`）
+- token：env `ARK_TEAM_API_TOKEN` → `{home}/state/api_token`（daemon 缺檔時產生，權限 0600；不寫進 mcp.json）
+- `team.yaml` 頂層 `api_auth: off | warn | enforce`，**預設 warn**（放行但記錄）；env `ARK_TEAM_API_AUTH` 可覆寫（緊急回滾）。
+  非法值照 warn 執行並記 `config_invalid`
+- `/api/health` 新增 `api_auth`（mode、unauth_writes、last_unauth）—— 跑滿 24 小時 `unauth_writes == 0` 再切 enforce
+- 呼叫端全數帶上：team_mcp、內建網站、跨團隊轉發（`CROSS_TEAM_TOKEN`）；ark-bot-agent 1.5.2 的 `TeamClient`
+
+### 🔧 可靠性（P2）
+
+- **F-11** TG 未建立且未宣告 headless → reply 自動走 log 出口；送不出的 reply 內容寫進 log
+- **F-12** 落單 surrogate 清洗（原本 `log_to_leader` 500、整則遺失）
+- **F-14** lazy spawn 並行上限 2（排程同時喚醒多個 stopped agent 時 ACP 握手互搶逾時）
+- **F-15** team_mcp 非冪等 POST 逾時／5xx 不重試（只重試連線被拒）
+- **F-16** 跨團隊轉發與內建排程的同步 job 改 `asyncio.to_thread`
+- **F-18** ACP 程序停止時不送 `/quit`（會變成一輪 prompt）
+- **F-19** ACP stdout EOF → 等待中的 request 立即失敗（原本 `start()` 白等 300 秒）
+- **F-20** 輸出串流改行號游標（ring buffer 滿後不漏、不切錯）
+- **F-22** `session_events.db` 保留 30 天（以整段 session 最後活動判斷）
+- **F-23** AWAITING_REPLY／IDLE 也視為「在跑」（multi_user session 不再被 kill 再 spawn）
+- **F-24** dispatch 等待者只接「最後入站來源是 dispatch」的 reply（不再搶走給使用者的回覆）
+
+### 🧹 P3
+
+- **F-25** `bg.spawn_bg()` 統一背景 task（持有引用、記錄例外）；AST 守門禁止丟棄 `create_task` 回傳值
+- **F-26** `_user_display` 運算子優先序；**F-27** 事件「今日」以本地午夜起算；**F-28** 刪死碼
+- **F-31** Access denied 依 uid 每小時只記一行
+- **F-13** 測試 home 隔離（conftest），測試不再寫正式 `state/events.db`
+
+### 守門
+
+`test_api_token_auth_1130.py` 16 項（反證 3 紅）、`test_audit_p2p3_1130.py` 16 項（以修正前程式碼反證 13 紅）
+
 ## 1.12.2 (2026-10-16)
 
 依系統稽核 `docs/reports/2026-10-16-ark-team-agent-system-audit.md` 修正安全（F-1～F-4、F-17）與訊息可靠性（F-5～F-10、F-21）。
