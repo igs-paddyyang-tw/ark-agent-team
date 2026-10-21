@@ -6,6 +6,17 @@
 
 ---
 
+## 1.13.2 (2026-10-21)
+
+### 🔍 偵測 Kiro 工具呼叫外洩成文字
+
+- Kiro CLI 偶發把工具呼叫以內部格式當成文字輸出（`court／count <invoke name="…"><parameter …>`），**該步實際沒執行**；
+  2026-10-20 觀察到只在 `model: auto` 時發生（各部署 kiro agent 全用 auto）
+- ACP turn 結束時檢查本 turn 文字：`<invoke name="…">` 緊接 `<parameter name=` 才算（單純討論格式不計）；
+  每次發生記 `log.warning` 並在輸出串流標一行
+- `/api/health` 新增 `tool_call_leaks`（total、各 instance 次數與最後一次片段；依目前 process 計，重啟歸零）。只觀測，不影響 `ok`
+- 守門 `tests/test_tool_call_leak_1132.py`（真實外洩樣本、跨片段、討論文字不誤判；反證 2 紅）
+
 ## 1.13.1 (2026-10-20)
 
 ### 🔧 送給使用者的文字不再被改壞或靜默截斷
