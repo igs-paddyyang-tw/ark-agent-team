@@ -6,6 +6,23 @@
 
 ---
 
+## 1.13.6 (2026-10-27)
+
+### ✨ 動態生成的 agent.json 改用 universal format
+
+- `_write_agent_json`（`backend.py`）fallback 動態生成與 `ark-team-agent init`（`cli.py`）
+  產生的 `.kiro/agents/*.json` 補上 V3 引擎所需的 `permissions`
+  （`capability=all / effect=allow`），同時**保留** `tools`/`allowedTools` 相容 2.x ——
+  與官方 `kiro-cli agent upgrade` 的 universal format 輸出一致
+- 背景：原本只寫 `tools`+`allowedTools`，kiro-cli 2.34.2 下仍合法可用，但官方
+  `agent upgrade --dry-run` 判為「可升級」；缺 `permissions` 的 profile 未來切到 V3 引擎會被跳過
+- 維持 **policy once**：既有部署的 agent.json 一字不改；消費端如需升級既有檔，
+  可跑 `kiro-cli agent upgrade .kiro/agents`（自動產 `.bak`）
+- 守門 `tests/test_kiro_files.py::test_write_agent_json_dynamic_has_permissions`：
+  動態生成須含 permissions（capability=all/effect=allow）且保留 tools/allowedTools；
+  反證（移除 permissions 行）會轉紅
+- ⚠ 本次不動 `cli.py` 模板的 `role` 欄位（非 V3 schema，另案確認消費者）
+
 ## 1.13.5 (2026-10-27)
 
 ### 🧠 BRAIN.md 合併版：五層判準＋本角色知識背景（2026-10-27 方案 1）
