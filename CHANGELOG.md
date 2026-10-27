@@ -6,6 +6,33 @@
 
 ---
 
+## 1.13.5 (2026-10-27)
+
+### 🧠 BRAIN.md 合併版：五層判準＋本角色知識背景（2026-10-27 方案 1）
+
+- daemon 為新 agent 產生的 BRAIN.md 改為**一份合併版**：五層判準（資源分工、讀寫順序、紅線）在前，
+  原本的角色知識（專業領域、工作原則、決策框架）降兩級後嵌進「## 本角色知識背景」。原本只有角色知識、沒有判準段，
+  與 ark-agent-skills 的範本同名不同內容
+- 判準段**唯一來源是 ark-agent-skills**（`ark-agent-init/assets/steering/BRAIN.md` @ `418a695`）：
+  套件內 `templates/steering/BRAIN-judgment.md` 是逐字副本，組裝邏輯對齊 skills `build_kiro._write_brain()`；
+  角色選法 `template` → instance 名 → role 對應；私有知識庫路徑依工作目錄推導
+- leader 角色範本補上「品質護欄」，與 skills `brain-roles/leader.md` 一致
+- `ark-team-agent init` **不再**在專案根寫舊式「專案知識背景」BRAIN.md —— 那會因 policy once 擋掉 daemon 的合併版
+- 維持 **policy once**：既有 BRAIN.md 一字不改（人工補充與 `## ARK:AGENT-NOTES` 決策筆記都在裡面）
+- ⚠️ **升級提醒**：既有部署的 BRAIN.md 不會自動更新。某個 agent 需要判準段時，人工把判準段補進去，
+  或**先備份 `ARK:AGENT-NOTES`** 後刪檔重啟，讓 daemon 重新產生
+- 守門 `tests/test_brain_merged.py` 15 項：合併版兩段齊全且無殘留佔位符、既有檔不變、判準段與 skills 逐字一致
+  （副本被改或 skills 端更新都會紅）、角色範本與 skills 一致；4 種錯誤改動各自紅
+
+### 🐛 data 角色範本從未出貨
+
+- `.gitignore` 的 `data/`（原意是忽略部署的 runtime 資料目錄）把 `templates/agents/data/` 一起吃掉：
+  data 角色的 SOUL／BRAIN **從未進版控、從未進任何 wheel**。用 wheel 安裝的部署，`data-agent` 一直退回 coder 範本；
+  開發源（editable）讀本機檔，所以一直沒被發現（與 2026-09-30 `site/data/` 同一條規則、同一個坑）
+- `.gitignore` 加例外；新守門 `tests/test_package_templates_tracked.py`：套件目錄下任何會出貨的檔案被 git 忽略就紅
+- ⚠️ 既有部署的 data-agent 已依 coder 範本產生過 SOUL／BRAIN（policy once 不會改寫）；需要 data 角色內容時，
+  備份 `ARK:AGENT-NOTES` 後刪檔重啟
+
 ## 1.13.4 (2026-10-27)
 
 ### 🧰 `deploy setup`（規格 M3）與 TG 一鍵更新改接引擎（M4）
