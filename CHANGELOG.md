@@ -6,6 +6,21 @@
 
 ---
 
+## 1.13.4 (2026-10-27)
+
+### 🧰 `deploy setup`（規格 M3）與 TG 一鍵更新改接引擎（M4）
+
+- **`ark-team-agent deploy setup`**：依 `deploy.yaml` 建立／重建部署 —— 機密檢查 → 建 venv → 安裝 → 產生 unit
+  → daemon-reload → 依 `enabled` 啟動 → doctor。
+  **既有 unit 與描述檔不同時預設只列差異（blocked）**，`--apply-unit` 才覆寫且先備份到 `state/backups/`；
+  缺機密時其他步驟照做但**不啟動**；可重跑（既有一致的部署再跑全部 ok／skipped、不改任何檔案）
+- **TG 一鍵更新（`updater.update_to`）改走 `deploy.upgrade.install_wheel`**：與 `deploy upgrade` 同一份安裝做法；
+  pip／uv 依描述檔（沒宣告時 venv 沒 pip 就用 uv）；裝完確認 venv 版本；成功後同步 `deploy.yaml` 的版本。
+  重啟仍走既有機制（在服務自己的程序裡，不能用 systemctl 把自己砍掉）
+- 安裝**不再加 `--no-deps`**：新版若多了相依會缺件、重啟即 import 失敗（而舊版已被覆蓋）
+- 守門 `tests/test_deploy_m3m4.py` 9 項（5 種錯誤改動各自紅）；實地驗證：本機 3 部署重跑不改任何檔案、
+  臨時部署從零建立／unit 分歧擋下／`--apply-unit` 備份後覆寫
+
 ## 1.13.3 (2026-10-27)
 
 ### 🧰 部署描述檔 `deploy.yaml` 與 `deploy init`／`doctor`／`upgrade`
