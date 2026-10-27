@@ -6,6 +6,24 @@
 
 ---
 
+## 1.13.3 (2026-10-27)
+
+### 🧰 部署描述檔 `deploy.yaml` 與 `deploy init`／`doctor`／`upgrade`
+
+規格 `docs/specs/deploy-manifest-setup-spec.md`（M1＋M2）。安裝與升級的「做法」只在套件一份；各部署只放描述檔。
+
+- **`ark-team-agent deploy init`**：從現況反推 `deploy.yaml` 草稿（版本、安裝工具、unit、env、log、port、api_auth、機密「名稱」、外部工具）。
+  unit 以 health port → PID → cgroup 判定（paddy-bot／ninja-academy-site 與 team 共用工作目錄，比對工作目錄會選錯）
+- **`ark-team-agent deploy doctor`**（唯讀）：9 項比對 —— 三方版本（描述檔／venv 實裝／執行中）、unit 的 exec／env／log、服務狀態
+  （`enabled: false` = 刻意停用）、機密有無、外部工具版本、health、preflight、真實 loader 生效值、log 檔大小。
+  每項 ok／skipped／failed／blocked，退出碼 0／1／2；外部命令 10 秒逾時、單項崩潰不中斷報告；**輸出不含任何機密值**
+- **`ark-team-agent deploy upgrade --to X`**：Preflight（刻意停用或非 active → blocked；忙碌就等，最多 10 分鐘）→ 下載並驗證 wheel
+  → 安裝（**失敗不重啟**；開發源 editable 不裝）→ 重啟並等 health → 只改 `deploy.yaml` 的版本那一行 → doctor ＋ 無 token 401 實測。
+  多個 `--home` 依序處理，任一 failed 即停；不 commit
+- **`/api/health` 新增 `busy`**：「一輪未結束（ACP）」或「佇列非空」的 instance。**不看 RUNNING** —— agent 啟動即 RUNNING、
+  只有呼叫 `reply()` 才離開，實測閒置 8 小時仍是 running（規格 D-1）
+- 守門 `tests/test_deploy_m1.py` 23 項、`tests/test_deploy_m2.py` 16 項（8 種錯誤改動各自紅）
+
 ## 1.13.2 (2026-10-21)
 
 ### 🔍 偵測 Kiro 工具呼叫外洩成文字
