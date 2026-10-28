@@ -6,6 +6,25 @@
 
 ---
 
+## 1.13.7 (2026-10-28)
+
+### 🔧 /publish 路徑與 token 走 .env + 支援 memory/daily
+
+**路徑／token（修 aiqa「目錄不是 git repo」）**
+- `PUBLISH_REPO_DIR`（.env）：明確指定要 commit/push 的 repo 目錄，不再假設 home == repo
+- `GITHUB_TOKEN`（.env，選配）：origin 是 https GitHub 時臨時帶入 push 認證，不落地、不進日誌
+- 路徑/token 優先讀 `os.environ`，否則讀 `{home}/.env`
+
+**memory/daily 目錄白名單**
+- `/publish` 原本只發固定白名單 `MEMORY.md`/`README.md`，收尾紀錄實際在 `memory/daily/YYYY-MM-DD.md`（檔名每天不同）→ 固定白名單涵蓋不到
+- 新增目錄前綴白名單 `memory/daily/`，放行其下 `.md`
+- `collect_daily_changes()` 用 `git status -uall` 自動蒐集有變更的 daily 檔（含今天剛建的 untracked 新檔）
+- 根目錄沒有某白名單檔（如沒 MEMORY.md）→ 跳過，不再 blocked
+
+**安全**
+- `..` 路徑段一律拒絕；機密樣式、路徑逃逸檢查、精確 `git add`（絕不 -A）全保留
+- 三項反證全綠（無 -uall 漏 untracked／不讀 env blocked／非 .md 不放行）
+
 ## 1.13.6 (2026-10-27)
 
 ### ✨ 動態生成的 agent.json 改用 universal format
