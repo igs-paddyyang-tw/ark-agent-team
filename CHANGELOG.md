@@ -6,6 +6,22 @@
 
 ---
 
+## 1.13.8 (2026-10-29)
+
+### 🔧 claude-code backend 補兩個缺口（`docs/plans/paddy-claude-cli-switch-plan.md` G1、G2）
+
+**G1 技能：claude agent 原本看不到任何 skill**
+- 技能佈建在 `.kiro/skills/`，Claude Code 只讀 `.claude/skills/` → `ClaudeBackend.write_config` 新增 `_link_skills`：
+  建立相對符號連結 `.claude/skills → ../.kiro/skills`（單一來源仍是 `.kiro/skills`）
+- 已有實體 `.claude/skills` → 不動，回 `claude_skills_user_owned`；連結指向別處 → `claude_skills_link_mismatch`；建立失敗 → `claude_skills_link_failed`（皆進 degraded）
+- 實測（對照組）：ACP 實際路徑下，無連結答「不知道」、有連結能讀到 skill 內容
+
+**G2 成本：claude 的用量原本不計入 cost_guard**
+- `process_acp` 讀 usage 事件的 `cost.amount`（session **累計值**）→ 轉成差額呼叫 `on_usage_cost`；累計值下降視為新 session
+- daemon 掛 `_on_usage_cost` → `cost_guard.add_spend`，claude agent 受每日上限控管；kiro 不送 usage 事件，不受影響
+
+**守門** `tests/test_claude_gaps_1138.py`（8 項）；反證：拿掉 `_link_skills` 呼叫／累計值當單輪金額／daemon 不掛 hook，各自轉紅
+
 ## 1.13.7 (2026-10-28)
 
 ### 🔧 /publish 路徑與 token 走 .env + 支援 memory/daily
