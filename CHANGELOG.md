@@ -6,6 +6,22 @@
 
 ---
 
+## 1.13.9 (2026-10-30)
+
+### 🛡️ 回覆送達與路由（ark-agent-os 2.0 M1 的引擎修正，線上同受益）
+
+依 M0 基線（`docs/reports/2026-10-30-ark-agent-bot-v2-latency-baseline.md`）：常駐 agent ACP 10% 未呼叫 `reply()`、kiro chat 進程中途退出丟訊息（線上近 3 天 16 次）。
+
+- **全來源補送（FR-038）**：agent 一輪結束卻沒呼叫 `reply()` → 以該輪輸出補送給原來源（TG 私訊／topic、dispatch、web；原本只補 web）。只對有人在等的來源；回覆過或轉派過不補。`communication.fallback_reply`（預設開）
+- **在途重送（FR-039）**：處理途中異常退出 → 在途訊息經既有 overflow 於重啟後重送一次，並請 agent 先告知使用者「剛才處理中斷，已重試」；重送過的不再重送。`communication.redeliver_inflight`（預設開）
+- **出口剝除工具呼叫外洩（FR-037）**：`/api/reply` 與補送路徑剝掉 `<invoke …><parameter …>` 外洩段（原本只計數）；只剩外洩的回覆不送出
+- **私訊回原處可單獨開（FR-010）**：`communication.reply_to_origin_private`（預設關，不改既有行為；2.0 profile 開）
+- **`@入口代號` ＝ 親自回答（FR-012）**：私訊點名入口 agent 時附「請直接回覆、不要派工」
+- **派工逾時收斂（FR-013）**：peer 逾時提醒加「有人在等時以已完成部分先回覆並註明誰未回覆」
+- **doctor：`general_topic` 只能設一個（FR-011）**
+- `/api/health.reply_guard`：`leaks_stripped`／`fallback_replies`／`redelivered`
+- 守門 `tests/test_os_m1_engine.py`（16 項；剝外洩／補送／重送／私訊開關四組反證）
+
 ## 1.13.8 (2026-10-29)
 
 ### 🔧 claude-code backend 補兩個缺口（`docs/plans/paddy-claude-cli-switch-plan.md` G1、G2）
