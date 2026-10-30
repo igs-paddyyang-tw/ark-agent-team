@@ -6,6 +6,18 @@
 
 ---
 
+## 1.13.10 (2026-10-30)
+
+### 🔧 `auto_start: false`＋`persistent: false` 改為「延後啟動」（原本是派不到）
+
+- **根因**：`start_instance` 對 `auto_start=False` 直接 return、`start_all` 也不註冊 → 這類 instance 不在 `self.instances`，
+  `send_message` 回 `Cannot send to X: not defined in team.yaml`，**永不 lazy spawn**
+- **影響**：2026-10-29 ninja（8 個 worker，`3fb73e4`）／paddy（5 個）以 `auto_start: false` 省 RAM，實際全部派不到；
+  ninja 日誌 10-29 起 14 次 `not defined`（含 leader-agent）。兩邊 team.yaml 已先拿掉該設定恢復（ninja `fix(team.yaml)`、paddy `bb63c07`）
+- **修法**：`start_all` 把 `auto_start:false＋persistent:false` 註冊為 STOPPED（開機不起）；`start_instance` 對已註冊者放行 →
+  首次派工走既有 lazy spawn。`auto_start:false＋persistent:true`（本體 workspace）行為不變
+- **守門** `tests/test_deferred_autostart_11310.py`（3 項）；反證：拿掉註冊 → 2 紅、guard 改回 → 1 紅；全套 3399 passed
+
 ## 1.13.9 (2026-10-30)
 
 ### 🛡️ 回覆送達與路由（ark-agent-os 2.0 M1 的引擎修正，線上同受益）
