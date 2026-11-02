@@ -6,6 +6,22 @@
 
 ---
 
+## 1.13.13 (2026-11-02)
+
+### 🔇 重啟檢查提示不再被補送到 TG（`team.py` `_auto_trigger_source`）
+
+- **病例**（2026-11-02 13:48 nana 重啟）：重啟提示要 agent「無中斷任務就保持安靜、不需 reply」，但以預設 `source="user"` 送出 → `user_turn_pending` → agent 照做沒呼叫 `reply`，FR-038 補送卻把輸出原文（「…Staying quiet as instructed — no reply.」）送上 TG
+- **修正**：重啟提示改帶 `source="system"`（自主工作、沒人在等）：不欠回覆、真有接續時 `reply` 照常送預設 topic／私訊、回完進 IDLE；每日開工提示要求 reply，維持 `user`（忘了 reply 仍有補送兜底）
+- 守門 `tests/test_restart_prompt_source_11313.py`（3 項）；反證：一律 user → 1 紅、呼叫處拿掉 `source=` → 1 紅；全套 4512 passed
+
+### 🧪 測試不再寫進「繼承來的」正式 home（`tests/conftest.py`）
+
+- **病例**（2026-11-02）：nana-team qa-agent（daemon 子進程，繼承 `ARK_TEAM_AGENT_HOME=<nana 正式目錄>`）每日 12:30 跑本套件；conftest 只在變數**未設**時才換暫存目錄 →
+  `test_version_check_and_update` 的 `update_to("1.6.0")` 把 nana `deploy.yaml` 改成 1.6.0（daily-git-sync 10-30、11-01 commit 上去），`events.db` 自 10-07 起 629 筆假事件（`x-agent` 180 筆假 crash）
+- **修正**：`ARK_TEAM_AGENT_HOME` 一律覆寫為 session 暫存目錄；`ARK_BOT_HOME`／`ARK_AGENTS_YAML` 不沿用繼承值
+- 守門 `tests/test_conftest_home_isolation.py`；反證：conftest 改回條件式＋帶正式 home 跑 → 2 紅、假 home 的 deploy.yaml 被改成 1.6.0；全套 4497 passed
+- nana 已清理（假事件 629 筆＋假 session 1 筆，備份 `state/backup-pre-testclean-20261102/`）、deploy.yaml 改回實際版號
+
 ## 1.13.12 (2026-11-02)
 
 ### 🩺 收訊息的 agent 走 kiro chat transport → `/api/health` degraded（設計 `docs/designs/chat-transport-reply-fallback-design.md` §4，方案 C 的 1.13.x 階段）
