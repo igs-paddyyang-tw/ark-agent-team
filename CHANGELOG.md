@@ -6,6 +6,22 @@
 
 ---
 
+## 1.13.11 (2026-11-02)
+
+### 🔒 /allow、/deny 三個存取缺陷的最小修正（計畫 `docs/plans/team-1.13.10-access-fix-plan.md`，設計 m2-access §2.1）
+
+| # | 原本 | 修正 |
+|---|---|---|
+| F-1 | `/deny` team.yaml 的人回「✅ 已移除」，重啟後又回來（假成功） | 靜態名單拒絕並提示改 team.yaml |
+| F-2 | `_persist_allowed` 把整份名單（含靜態）寫進 `state/allowed_users.json` → 從 team.yaml 刪人，json 仍留著他（改設定檔撤銷無效） | 只寫動態、原子寫入；舊版整份 json 下次寫入自動收斂 |
+| F-3 | 名單內即 admin → `/allow` 加進來的人也能 `/allow` 別人（權限擴散） | 只有 team.yaml 靜態名單能 `/allow`／`/deny` |
+
+- ⚠️ **行為變更**：`/allow` 加進來的使用者**不再能授權別人**；需要授權能力請加進 team.yaml 的 `access.allowed_users`
+- 靜態名單在 `__init__` 快照（`_snapshot_static_allowed`），早於 `_load_allowed` 合併 json —— 動態的人不會被算成靜態
+- 實作在 `src/ark_agent_os/telegram.py`（M3 T3.1a 後的位置）；1.13.x 最小修正，不引用 `ark_agent_os.access`（2.0 正式解法於 M3 T3.7 換掉）
+- **守門** `tests/test_team_allow_deny_fix.py`（6 項）；反證：F-1 拿掉靜態檢查 → 1 紅、F-2 改回寫整份 → 3 紅、F-3 `_check_admin` 改回 → 2 紅
+- 2026-10-30 本機 paddy／nana／ninja 皆無 `state/allowed_users.json`（未觸發）；雲端／AIPC 未查
+
 ## 1.13.10 (2026-10-30)
 
 ### 🔧 `auto_start: false`＋`persistent: false` 改為「延後啟動」（原本是派不到）
