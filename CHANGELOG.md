@@ -6,6 +6,14 @@
 
 ---
 
+## 1.13.16 (2026-11-02)
+
+### 🔧 引擎副本 vendor ark-agent-cli 升 2.4.4（`ark_agent_os/agent_scripts`，與 bot 1.5.23 同一份）
+
+- 帶上 2.4.3（codex／gemini 背景 job 用量）與 2.4.4（kiro-cli 2.34 信任工具名 `read_file` 等，新舊名並列）
+- 1.13.15 的 `jobs` 已以 `--allow-tools` 繞過 kiro 工具名問題；本版讓 skill 預設映射本身也正確（直接用 `agent_spawn` 的人同樣受益）
+- 文件：T3.7f 設計補 OQ-RW-2（長答覆觸發看單則字數，agent 自行拆段幾乎不觸發，待 2.0 決定）
+
 ## 1.13.15 (2026-11-02)
 
 > 1.13.14 在 nana 做 TG 實測（`/deny` 靜態／動態 ✅）抓到的兩個問題。
