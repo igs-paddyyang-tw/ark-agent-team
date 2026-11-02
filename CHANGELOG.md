@@ -6,6 +6,22 @@
 
 ---
 
+## 1.13.12 (2026-11-02)
+
+### 🩺 收訊息的 agent 走 kiro chat transport → `/api/health` degraded（設計 `docs/designs/chat-transport-reply-fallback-design.md` §4，方案 C 的 1.13.x 階段）
+
+- **根因**（incident `0c9ef0b`）：「agent 只用文字作答、沒呼叫 `reply` 時代送」只接在 ACP transport；kiro chat transport 沒有一輪結束訊號 → 使用者收不到任何東西（paddy-agent 21 天零回覆，已以 `backend: kiro-acp` 緩解 `b0a59b0`）
+- **本版**：開機時判定「會收使用者訊息」（`manager`／`private_chat`／`topic_id`／`general_topic`／`/api/v1/dispatch` 預設目標）且解析為 kiro-cli＋chat 的 instance → degraded `chat_transport_no_reply_fallback:<name>`＋WARNING（附改法）；**不擋啟動、不影響 `ok`**。含延後啟動尚未 spawn 的；改成 ACP 後重啟即消失
+- **改法**：team.yaml `backends: {kiro-acp: {type: kiro-cli, transport: acp}}`＋該 instance `backend: kiro-acp`，或部署 `.env` `ARK_KIRO_ACP_ENABLED=1`（注意同一份 .env 是否也被 bot 讀）
+- 本機實測判定：paddy 0（已緩解）、nana 0（全域 ACP）、**ninja 2（ninja-agent、leader-agent）** —— 升級後 ninja health 會出現這兩個 tag
+- 2.0 預定改 `config_invalid`（不啟動）
+- **守門** `tests/test_chat_transport_receivers_11312.py`（7 項）；反證：拿掉 transport 判斷 → 3 紅、`start_all` 不呼叫 → 2 紅
+
+### 🔧 同版帶上（main 上已合入、未發版）
+
+- deploy `doctor`／`upgrade` 版號探針加 `-W ignore::DeprecationWarning`（`980137f`）—— 1.13.11 起 shim 警告混進輸出最後一行，upgrade 判安裝失敗不重啟、doctor versions 恆 failed。⚠️ upgrade 用的是**部署端已安裝版**的探針：從 1.13.11 升上來那一次仍會誤判，要手動重啟＋確認版號
+- M3 T3.2 混裝偵測 `ark_agent_os.mixed_install`（M4 前不觸發）、T3.3 CLI `ark-agent-os` 別名（`9aa7f3a`）
+
 ## 1.13.11 (2026-11-02)
 
 ### 🔒 /allow、/deny 三個存取缺陷的最小修正（計畫 `docs/plans/team-1.13.10-access-fix-plan.md`，設計 m2-access §2.1）
