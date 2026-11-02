@@ -6,6 +6,33 @@
 
 ---
 
+## 1.13.15 (2026-11-02)
+
+> 1.13.14 在 nana 做 TG 實測（`/deny` 靜態／動態 ✅）抓到的兩個問題。
+
+### 🔧 `/job` 的 kiro 背景任務讀不到任務檔（`e90fc48`）
+
+- **現象**：`/job coder …` 派得出去、回 job_id，但 40 秒內 `failed`（「連續兩段未寫 checkpoint」），worker 回 `NO_FS_TOOL`
+- **根因**（以 kiro-cli 2.34.2 重現）：
+  - 帶 `--agent <name>` 時，team 產生的 agent.json 沒宣告 `tools` → 非互動模式只給 team MCP 工具（`reply`、`send_to_instance`…）＋`disclose_context`，**沒有讀檔工具**；唯讀任務反而能發訊息
+  - ark-agent-cli 的唯讀權限只信任 `fs_read`，kiro 2.34 讀檔工具已改名 `read_file` → 讀工作區外的任務檔（`~/.ark/agent-jobs/`）被擋
+- **修正**：kiro 背景任務不帶 `--agent`（預設 agent、內建工具齊全、無 team MCP；工作目錄仍是該 agent 目錄），以 `--allow-tools` 信任唯讀工具（`read_file`＋舊名 `fs_read` 等）；claude 不變
+- **實測**：同一題以真 kiro 跑到 `done`、摘要正確；新舊名混用可讀、寫入仍被擋（唯讀有效）
+
+### 💬 附件後的收尾文字不再遺失（`ed60287`）
+
+- **現象**：小娜用 `reply_file` 傳完 HTML 報告，再以文字收尾（說明＋「要我把 MEMORY 更新成 1.13.14 嗎？」）→ 使用者只收到檔案，文字整段消失
+- **根因**：`/api/reply-file`、`/api/reply-photo`、`/api/log`（log_to_leader）都呼叫 `mark_reply` → 清掉「欠使用者答覆」→ FR-038 補送不觸發
+- **修正**：`mark_reply(answered=False)`：仍算有回應（hang 判準不變），但不算答覆；真正 `reply` 才清。agent 以文字收尾就補送、沒有文字就不送
+- 反證：`mark_reply` 忽略 `answered` → 紅；任一端點改回 → 對應那條紅
+
+### 🗂️ TG 上傳的 `temp/` 不進版控
+
+- 部署的 `.gitignore` 多半沒有 `temp/`（nana／ninja／paddy 皆無），而 nana 有每日 `git add`＋commit → 上傳檔會被推上 repo
+- 上傳落地後自動寫 `temp/.gitignore`（`*`，已存在不覆寫）；`init` 範本 `.gitignore` 補 `temp/`、`output/`
+- 守門以真 `git check-ignore` 驗；反證：拿掉呼叫 → 紅
+- ⚠️ bot 部署（ninja-bot、paddy-bot）同樣沒有忽略 `temp/`，bot 側另行處理
+
 ## 1.13.14 (2026-11-02)
 
 ### 🧩 2.0 M3 T3.7 接線隨 1.13.x 發布（`/job`、上傳、存取控制、長答覆附件、對話追蹤、memory／chat 端點）
