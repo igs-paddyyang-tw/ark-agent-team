@@ -6,6 +6,36 @@
 
 ---
 
+## 1.13.14 (2026-11-02)
+
+### 🧩 2.0 M3 T3.7 接線隨 1.13.x 發布（`/job`、上傳、存取控制、長答覆附件、對話追蹤、memory／chat 端點）
+
+> 計畫 `docs/plans/ark-agent-bot-v2-unification-plan.md` T3.7／T3.7f；各項反證見 commit。本版目的：讓 TG 實測（`/job`、上傳、`/deny` 靜態／動態、長答覆）能在部署上做。
+
+| 項目 | commit | 行為 |
+|---|---|---|
+| `/job <agent> <事>`／`list`／`status`／`result`／`cancel` | `7b6b3eb` | 背景任務（`ark_agent_os.jobs`，systemd-run 獨立單元），終態推回發起的 chat；每 10 分鐘巡檢補推。權限沿用 `_check_access`；Bot 選單新增 `/job` |
+| TG 上傳（文件／照片） | `36c5426` | **先驗權再下載**（私訊回 🔒、群組靜默）、群組需點名、≤20MB、危險副檔名隔離到 `_quarantine`（不餵 agent），其餘下載後以「使用者上傳了…已存於…」走同一條訊息路由 |
+| `/allow`、`/deny` 存取控制 | `89d193e` | 改走 `ark_agent_os.access`：靜態＝team.yaml `access.allowed_users`（admin）、動態＝`state/access.json`（`/allow` 預設 user，支援 `[admin\|user]`）；1.13.11 的 `allowed_users.json` 首次啟動以 user 匯入。語意同 1.13.11（靜態不可 `/deny`、動態不可授權） |
+| 長答覆附件 | `08b837d` | team.yaml `report:`（**預設關**，既有部署零變化）：開啟後 `/api/reply` 超過 `min_chars`（3500）產 MD＋HTML，附件送到同一個實際送達處；FR-038 補送同樣經過；失敗只記 log、回覆照常 |
+| 對話追蹤 | `b266355` | TG 入站、派工傳遞、回覆完成寫 trace（`by_route`：`private:self`／`private:delegate`／`group:*`）；寫入失敗只記 debug |
+| daemon 端點 | `707e97f` | `/api/memory/recall`／`reindex`（POST）、`/api/chat/traces`／`stats`；`_builtin:memory-consolidate` 後增量重建索引 |
+
+- ⚠️ **行為變更**：`/allow` 名單檔改為 `state/access.json`（舊 `state/allowed_users.json` 自動匯入一次）
+- ⚠️ **行為變更**（`9749c91`，T3.1b-1）：同一個 `health_port` 已有 ark daemon 在跑 → 第二個拒絕啟動（rc=2，訊息給改法）。
+  `systemctl restart` 與 `/restart`（SIGTERM → systemd 拉起）都是舊進程結束後才起新的，不受影響；擋的是前景再跑一次 `start.py`
+- 相依套件不變
+
+### 📦 引擎不再依賴 team wheel 沒打包的 `ark_bot_agent`（發版前攔下）
+
+- **問題**：`_engine.AGENT_SPAWN` 以 `find_spec("ark_bot_agent")` 找背景任務 worker 腳本，但 team wheel 只含 `ark_agent_os`／`ark_team_agent` →
+  只裝 team wheel 的部署（nana／ninja／雲端）import `jobs`／`report`／`memory.chat_trace`／`memory.indexer` 即 AttributeError：
+  `/job`、長答覆附件、對話追蹤、memory 端點全壞，後三者失敗只記 log。開發 venv 兩個套件都是 editable，全套測試照綠
+- **修正**：worker 腳本（ark-agent-cli vendor 6 檔）複製到 `ark_agent_os/agent_scripts/`（只改 import 路徑），`AGENT_SPAWN` 改指它
+- 守門 `tests/ark_agent_os/test_agent_scripts_vendor.py`：兩份副本一致、副本不得 import `ark_bot_agent`、封鎖 `ark_bot_agent` 後新模組全可 import；
+  反證：`AGENT_SPAWN` 改回 → 2 紅、副本改一字 → 1 紅
+- **實測**：乾淨 venv 只裝本版 wheel（`find_spec("ark_bot_agent")` 為 None）→ 背景任務經 `systemd-run` 跑到 `done`、收件匣有終態
+
 ## 1.13.13 (2026-11-02)
 
 ### 🔇 重啟檢查提示不再被補送到 TG（`team.py` `_auto_trigger_source`）
