@@ -6,6 +6,33 @@
 
 ---
 
+## 1.13.17 (2026-11-02)
+
+> ark-agent-os 2.0 M3 收尾：長答覆附件改「同一輪累計」、服務重啟不遺失訊息、送檔可觀測性、chat transport 的 2.0 開關。
+
+### 📄 長答覆報告改「同一輪累計字數」（T3.7f ADR-RW-4，`7515ef3`）
+
+- **現象**：nana 開了 `report.enabled`，實測兩次都沒觸發 —— agent 依 TG 精簡規範把約 4000 字自行拆成 3 則 `reply`（每則 < 3500）
+- **修正**：文字照常即時送出，同時累積到該 instance 的本輪緩衝；本輪結束（ACP turn end＋5 秒寬限、非 ACP 閒置 120 秒、下一則使用者訊息，三者先到）合計 ≥ `min_chars` 才產**一份**報告附件，送到第一則的實際送達處
+- 寬限內又有回覆（FR-038 補送的收尾）會重新計時並併入；合計不足就丟棄
+
+### ♻️ 服務重啟不遺失在途訊息（T3.8，`21268d3`）
+
+- **現象**：17:44 升 1.13.15 重啟時，使用者 17:43 上傳的檔案處理到一半被中斷，重啟後沒人處理（FR-039 只涵蓋子進程崩潰）
+- **修正**：停機時先 drain（停止投遞新的一輪、等處理中的那輪結束，上限 `communication.shutdown_drain_s` 60 秒），再把佇列殘留與「有人在等」的在途訊息存進 overflow（新增 `source` 欄，自動遷移）；重啟後重送一次並照來源記帳（補送、報告、trace 照常）
+- 超過 `communication.redeliver_max_age_s`（30 分鐘）的不重送，改通知來源「請重傳」；啟動橫幅顯示待重送筆數
+- ⚠️ 停機最多慢 60 秒（systemd 預設 `TimeoutStopSec` 90 秒，留 30 秒餘裕）
+
+### 📎 送檔可觀測性與孤兒 trace（`9f4e345`）
+
+- `reply_file`／`reply_photo` 送出時 journal 記一行 `📎 REPLY-FILE <instance> ← <檔名>`，並完成該則 trace（原本只送檔的回合 trace 永遠 pending）
+- 同一 instance 回覆前又收到新訊息 → 舊 trace 標 `superseded`（原本被覆寫而永遠 pending）
+
+### 🚧 `communication.chat_receiver_policy`（T4.4 前置，`52c38ac`）
+
+- `warn`（預設，行為同 1.13.12：degraded＋WARNING、照常啟動）／`block`（會收使用者訊息的 agent 走 kiro chat transport → `config_invalid` 不啟動，訊息附 kiro-acp profile 片段）
+- 2.0.0 會把預設改 `block`；**1.13.x 既有部署零變化**
+
 ## 1.13.16 (2026-11-02)
 
 ### 🔧 引擎副本 vendor ark-agent-cli 升 2.4.4（`ark_agent_os/agent_scripts`，與 bot 1.5.23 同一份）
