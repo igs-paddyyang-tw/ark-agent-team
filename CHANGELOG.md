@@ -6,6 +6,19 @@
 
 ---
 
+## 1.13.18 (2026-11-03)
+
+> 1.13.17 在 nana 實測 T3.8（處理中重啟）抓到的問題。
+
+### ♻️ 重啟時子進程被一起終止，在途訊息仍要保存（`bf19b6a`）
+
+- **現象**：nana 處理一則長文時 `systemctl --user restart` → drain 2 秒就判「閒置」→ 訊息沒存、重啟後沒重送
+- **根因**：systemd 預設 `KillMode=control-group` 把 SIGTERM **同時**送給 kiro-cli 子進程；1.13.17 的持久化以「子進程還活著」為條件
+- **修正**：在途訊息只看在途紀錄（turn 正常結束／回覆才會清）就保存；drain 期間子進程被砍會明講
+- **deploy**：`deploy setup` 產生的 unit 加 `KillMode=mixed`、`TimeoutStopSec=90`（只對 daemon 送 SIGTERM，drain 才能真的等）；`deploy doctor` 新增 `unit_kill_mode`（非 mixed 回 skipped 並附 drop-in 指令，不影響升級 verify）
+- ⚠️ **既有部署建議加 drop-in**（否則仍是「重啟後重送」而非「等它做完」）：
+  `mkdir -p ~/.config/systemd/user/<unit>.d && printf '[Service]\nKillMode=mixed\nTimeoutStopSec=90\n' > ~/.config/systemd/user/<unit>.d/killmode.conf && systemctl --user daemon-reload`
+
 ## 1.13.17 (2026-11-02)
 
 > ark-agent-os 2.0 M3 收尾：長答覆附件改「同一輪累計」、服務重啟不遺失訊息、送檔可觀測性、chat transport 的 2.0 開關。
