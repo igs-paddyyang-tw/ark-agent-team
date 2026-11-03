@@ -6,6 +6,30 @@
 
 ---
 
+## 1.13.19 (2026-11-03)
+
+> 落實《Ark Agent OS 運作準則》（`docs/reports/2026-11-03-ark-agent-os-operating-principles.md`）：根目錄 manager＝使用者分身，`agents/` 是團隊（admin＋leader＋workers）。
+
+### 📮 派工鏈結果經 manager 轉呈（A-1，`9a063df`）— **預設關**
+
+- 開啟：`team.yaml` → `communication: { relay_via_manager: true }`（門檻 `relay_direct_max_chars`，預設 600）
+- 由 manager 私訊發起的派工鏈：leader／worker 的 `reply` 不再直達私訊；同一輪結算後
+  - 短（< 600 字）→「📋 代號 回報」直轉（不經 LLM）
+  - 長 → 原文 HTML 附件＋請 manager 寫 ≤ 5 行結論；manager 120 秒未回 → 原文直送
+- 直達（私訊 `@代號`、群組）不轉呈；停機前先結算
+
+### 📒 直達成員的問答寫進 manager daily（A-5／D-6，`a5f87a5`）
+
+- 私訊 `@代號` 或群組直接找非 manager 成員 → 成員回覆時，同一筆 Q／A 以 `direct:<route>` 追加到 manager 的 `memory/daily/`
+
+### 🧭 TEAM.md 通訊規則照實際權限（A-2，`a5f87a5`）
+
+- 舊表寫 leader「除 admin」、manager「所有 group 成員」，與 `/api/send` 不符 → 改為 leader 可發 admin、manager 只發 admin／leader／manager；守門逐角色實打比對
+
+### 🏠 manager 預設留在專案根（ADR-003 修訂，`9fde074`）
+
+- `init --profile bot|team` 的 manager `working_directory: .`；`migrate --from-bot` 預設不搬（`--move-manager-dir` 才搬；`--keep-manager-dir` 相容）
+
 ## 1.13.18 (2026-11-03)
 
 > 1.13.17 在 nana 實測 T3.8（處理中重啟）抓到的問題。
