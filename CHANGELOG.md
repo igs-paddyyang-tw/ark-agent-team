@@ -6,6 +6,17 @@
 
 ---
 
+## 1.13.20 (2026-11-03)
+
+> 1.13.19 在 nana 實測「派工鏈經 manager 轉呈」抓到的兩個落差（G1、G2）。
+
+### 📥 鏈中 worker 的回報交給派工的 leader 驗收（設計 relay-via-manager ADR-RV-4）
+
+- **現象**：leader 派工時要 worker「完成後直接回報 Paddy」→ worker 直接 reply 使用者，leader 沒驗收；leader 派工當下也回一則「已派工」，與 manager 的「已轉給」重複
+- **修正（程式）**：`relay_via_manager` 開啟時，鏈中 worker 的 `reply` 改送給派工的 leader（`source=worker`），不進使用者；沒有 leader 才照 manager 轉呈；使用者直接 `@worker` 不受影響
+- **修正（提詞，TEAM.md）**：leader「manager 交辦的工作，派工時不要 reply 使用者，驗收彙整後才 reply 一次」；worker「完成後回報派工給你的 leader」
+- 1.13.19 已修：`_st()` 讓新狀態表相容以 `__new__` 建構的呼叫端
+
 ## 1.13.19 (2026-11-03)
 
 > 落實《Ark Agent OS 運作準則》（`docs/reports/2026-11-03-ark-agent-os-operating-principles.md`）：根目錄 manager＝使用者分身，`agents/` 是團隊（admin＋leader＋workers）。
