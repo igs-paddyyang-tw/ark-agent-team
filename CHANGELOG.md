@@ -6,6 +6,29 @@
 
 ---
 
+## 1.13.23 (2026-11-04)
+
+> 🏁 **ark-team-agent 最後一版**。與 **ark-agent-os 2.0.0** 由同一個 commit build；之後只發 ark-agent-os。
+> 升級：`ark-team-agent deploy upgrade --to 2.0.0`（先移除 ark-team-agent、再裝 ark-agent-os，失敗自動裝回；deploy.yaml 套件名一併改）。
+> 本版的 2.0 預設（`chat_receiver_policy: block`）**只在 ark-agent-os 發行版生效**，1.13.23 既有部署行為不變。
+
+### 🔀 跨套件名升級到 ark-agent-os 2.x（設計 ark-agent-os-m4-release-bridge-design.md）
+
+- 版號依實際安裝的發行版回報（os → 2.x、team／開發源 → 1.13.23）
+- `deploy upgrade`／TG 一鍵更新：目標 ≥ 2.0.0 時改從 ark-agent-os Release 抓、驗 `ark_agent_os/__init__.py` 版號
+- bot 已退役為相容 shim（`ark_bot_agent` 1.5.x 改在 `release/bot-1.5` 維護）
+
+### 🔴 ACP agent 忙碌時送來的訊息會遺失（B1，ACP 上線以來既有）
+
+- **現象**：nana 的 ceo 正在跑排程巡檢，小娜的派工送進來 → kiro 回 `Prompt already in progress` 拒收；daemon 送出不等回應（fire-and-forget），以為已送達 → **派工靜默遺失**
+- **修正**：送新的一輪前先等上一輪結束（≤ 900 秒）；等太久就存 overflow 稍後重送，不再當成已送達
+- 影響：任何「排程與使用者／派工訊息同時打到同一個 ACP agent」的情境
+
+### 📌 派工的 origin 於訊息送達時才生效（B2）
+
+- **現象**：派工送給忙碌中的 leader 時，「來自私訊」立刻掛上 → 它手上那輪（巡檢）的回覆被當成派工答案轉呈給使用者
+- **修正**：目標忙碌時 origin 跟著訊息排隊，真正送進 agent 後才生效；閒置時行為不變
+
 ## 1.13.22 (2026-11-03)
 
 > 「派工鏈經 manager 轉呈」第二次 nana 實測的兩個問題（設計 relay-via-manager ADR-RV-5）。
